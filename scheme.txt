@@ -1,0 +1,63 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+
+Table users {
+  id uuid 
+  username varchar
+  password integer
+  created_at timestamp
+  passwordHash TEXT
+  role varchar
+
+}
+
+Table posts {
+  id uuid [primary key]
+  title varchar
+  description text
+  preview_url varchar
+  body text [note: 'Content of the post']
+  creator_user_id integer [not null]
+  status varchar
+  updated_at timestamp
+  created_at timestamp
+
+}
+
+Table tokens {
+  id uuid [primary key]
+  user_id integer [not null, ref: > users.id]  // Связь с таблицей пользователей
+  token varchar(512) [not null, unique]       // JWT или случайный хеш
+  token_type varchar(50) [not null, note: 'refresh/access/email_verify']  // Тип токена
+  expires_at timestamp [not null]              // Срок действия
+  created_at timestamp [default: `now()`]      // Дата генерации
+  updated_at timestamp                         // Последнее изменение
+}
+
+Table tags {
+  id uuid
+  name text
+}
+
+
+
+Table categories {
+  id uuid
+  name text 
+
+}
+
+Table post_categories_tags {
+  post_id uuid
+  category_id uuid
+  tags_id uuid [ref: > tags.id]
+}
+
+Ref: posts.id < post_categories_tags.post_id
+Ref: categories.id < post_categories_tags.category_id
+Ref user_posts: posts.creator_user_id > users.id // many-to-one
+
+// Ref: users.id < follows.following_user_id
+
+// Ref: users.id < follows.followed_user_id
