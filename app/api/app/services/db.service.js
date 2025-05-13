@@ -99,9 +99,14 @@ function _migrate(environment, force=false) {
 async function _associateModels(models) {
 	return new Promise((resolve, reject) => {
 		try{
-			Object.keys(models).map(modelName => (
-				models[modelName].associate(models)
-			));
+			Object.keys(models).map(modelName => {
+				// Check if the model has an 'associate' method before calling it
+				if (models[modelName].associate && typeof models[modelName].associate === 'function') {
+					models[modelName].associate(models);
+				} else {
+					console.warn(`Model ${modelName} doesn't have an associate method`);
+				}
+			});
 
 			return resolve(models);
 		}

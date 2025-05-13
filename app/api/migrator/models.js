@@ -7,4 +7,3 @@ require('#models/Post');
 require('#models/Tag');
 require('#models/Category');
 require('#models/PostCategoryTag');
-// Add your models here ...

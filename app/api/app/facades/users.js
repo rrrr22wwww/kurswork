@@ -23,11 +23,11 @@ module.exports = {
 }
 
 // Auth:
-async function _register({ email, password }) {
+async function _register({ username, password }) { // Changed email to username
 	try{
 		// Try to create new user.
 		const user = await User.create({
-			email,
+			username, // Changed email to username
 			password
 		});
 
@@ -47,10 +47,10 @@ async function _register({ email, password }) {
 	}
 }
 
-async function _login({ email, password }) {
+async function _login({ username, password }) { // Changed email to username
 	try{
 		// Try to find user.
-		const user = await User.findOneByEmail(email);
+		const user = await User.findOneByUsername(username); // Changed findOneByEmail to findOneByUsername
 
 		if (!user) {
 			// If no such user was found, throw error with name UserNotFound:

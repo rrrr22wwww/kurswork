@@ -17,7 +17,7 @@ async function _main () {
 		};
 
 		// Make database connection active.
-		const DB = await db.service(process.env.NODE_ENV).start();
+		await db.service(process.env.NODE_ENV).start();
 
 		await users.run();
 		// Run seeders here...

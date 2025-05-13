@@ -28,24 +28,6 @@ const User = database.define(
 			type: DataTypes.STRING,
 			allowNull: true // Set to false and add defaultValue if role is mandatory
 		},
-		firstName: {
-			type: DataTypes.STRING(80),
-			allowNull: true
-		},
-		lastName: {
-			type: DataTypes.STRING(175),
-			allowNull: true
-		},
-
-		// Example of virtual field:
-		fullName: {
-			type: DataTypes.VIRTUAL,
-			get: function() {
-				const firstName = this.getDataValue('firstName');
-				const lastName = this.getDataValue('lastName');
-				return `${(firstName || '').trim()} ${(lastName || '').trim()}`.trim();
-			}
-		}
 	},
 	{
 		// Enable automatic 'createdAt' and 'updatedAt' fields.

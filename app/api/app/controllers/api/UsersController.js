@@ -24,11 +24,11 @@ function UsersController() {
 
 		switch(error.name) {
 			case('Unauthorized'):
-				errorMessage = 'Email or password are incorrect.';
+				errorMessage = 'Username or password are incorrect.';
 				statusCode = 406;
 				break;
 			case('ValidationError'):
-				errorMessage = "Invalid email OR password input";
+				errorMessage = "Invalid username OR password input";
 				statusCode = 401;
 				break;
 			case('InvalidToken'):
@@ -60,17 +60,13 @@ function UsersController() {
 	const _register = async (req, res) => {
 		try {
 			// Extract request input:
-			const email = req.body?.email
+			const username = req.body?.username 
 			const password = req.body?.password
-			const firstName = req.body?.firstName
-			const lastName = req.body?.lastName
 
 			// Create new one.
 			const [ tokens, user ] = await usersFacade.register({
-				email,
+				username, 
 				password,
-				firstName,
-				lastName
 			});
 
 			// Everything's fine, send response.
@@ -92,18 +88,18 @@ function UsersController() {
 	const _login = async (req, res) => {
 		try {
 			// Extract request input:
-			const email = req.body?.email
+			const username = req.body?.username 
 			const password = req.body?.password
 
 
-			if (!email || email === undefined || !password || password === undefined) {
+			if (!username || username === undefined || !password || password === undefined) { 
 				// If bad input, throw ValidationError:
-				const err = new Error("Invalid email OR password input");
+				const err = new Error("Invalid username OR password input");
 				err.name = "ValidationError";
 				throw err;
 			}
 
-			const [ tokens, user ] = await usersFacade.login({ email, password });
+			const [ tokens, user ] = await usersFacade.login({ username, password }); 
 
 			// Everything's fine, send response.
 			return createOKResponse({

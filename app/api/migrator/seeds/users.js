@@ -9,7 +9,7 @@ module.exports = {
 async function _run () {
 	try {
 		const exampleUserData = {
-			email:    'test@test.com',
+			username: 'testuser', // или любое другое имя пользователя
 			password: 'simplepass'
 		}
 
