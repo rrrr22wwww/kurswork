@@ -6,16 +6,35 @@ const database = require('#services/db.service');
 const DisabledRefreshToken = database.define(
 	'DisabledRefreshToken',
 	{
+		id: {
+			type: DataTypes.UUID,
+			defaultValue: DataTypes.UUIDV4,
+			primaryKey: true,
+			allowNull: false
+		},
 		token: {
-			type: DataTypes.STRING,
+			type: DataTypes.STRING(512),
 			required: true,
 			allowNull: false,
 			unique: true
 		},
-		UserId: {
-			type: DataTypes.INTEGER,
-			required: true,
+		token_type: {
+			type: DataTypes.STRING(50),
+			allowNull: false,
+			comment: 'refresh/access/email_verify'
+		},
+		expires_at: {
+			type: DataTypes.DATE,
 			allowNull: false
+		},
+		user_id: {
+			type: DataTypes.UUID,
+			required: true,
+			allowNull: false,
+			references: {
+				model: 'Users',
+				key: 'id'
+			}
 		}
 	},
 	{
@@ -30,7 +49,7 @@ const DisabledRefreshToken = database.define(
 // Static methods:
 DisabledRefreshToken.associate = models => {
 	models.DisabledRefreshToken.belongsTo(models.User, {
-		foreignKey: 'UserId',
+		foreignKey: 'user_id',
 		as: 'user'
 	});
 }
@@ -42,7 +61,9 @@ DisabledRefreshToken.createOrFind = function({ token, userId }) {
 
 	const defaults = {
 		token: token,
-		UserId: userId
+		user_id: userId,
+		token_type: 'refresh',
+		expires_at: new Date(Date.now() + 60 * 60 * 1000)
 	};
 
 	const query = {

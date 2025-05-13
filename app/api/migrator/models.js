@@ -3,4 +3,8 @@
  */
 require('#models/User');
 require('#models/DisabledRefreshToken');
+require('#models/Post');
+require('#models/Tag');
+require('#models/Category');
+require('#models/PostCategoryTag');
 // Add your models here ...

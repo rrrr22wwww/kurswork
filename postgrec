@@ -1,0 +1,2 @@
+
+ docker run --name some-postgres3 -e POSTGRES_USER=sqldb -e POSTGRES_PASSWORD=112544 -e POSTGRES_DB=database -p 5432:5432 -v pgdata:/var/lib/postgresql/data -d postgres

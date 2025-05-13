@@ -1,6 +1,5 @@
 // Import config from .env file.
 require('dotenv').config();
-console.log('[Seeder] dotenv loaded. NODE_ENV:', process.env.NODE_ENV); // Added log
 
 // Data to seed:
 const users = require('./seeds/users');
