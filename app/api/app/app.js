@@ -2,6 +2,8 @@
  * Main application file:
  */
 
+require('dotenv').config(); // Load environment variables from .env file
+
 // Info about current and allowed environments.
 const environments = require('#configs/envinorments');
 // Middleware for parsing requests bodies.

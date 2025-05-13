@@ -3,6 +3,14 @@ const Sequelize = require('sequelize');
 // Connection configs.
 const Configs = require('#configs/database');
 
+console.log('[db.service.js] Configs object received:', {
+    database: Configs.database,
+    username: Configs.username,
+    password_exists: !!Configs.password, // Log existence, not the value
+    host: Configs.host,
+    port: Configs.port,
+    dialect: Configs.dialect
+});
 
 // Make first database connection.
 const connection = new Sequelize(
@@ -14,8 +22,6 @@ const connection = new Sequelize(
 		port: Configs.port,
 		dialect: Configs.dialect,
 		pool: Configs.pool,
-		charset: Configs.charset,
-		collate: Configs.collate, 
 		timestamps: Configs.timestamps,
 		logging: Configs.logging
 	}
