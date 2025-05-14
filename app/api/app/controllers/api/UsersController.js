@@ -10,6 +10,8 @@ const {
 } = require('#factories/responses/api');
 // Custom error.
 const { Err } = require('#factories/errors');
+// JWT Config
+const jwtConfig = require('#configs/jwt');
 
 
 module.exports = UsersController;
@@ -69,11 +71,26 @@ function UsersController() {
 				password,
 			});
 
+			 // Set tokens in HttpOnly cookies
+			res.cookie('accessToken', tokens.accessToken, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+				sameSite: 'strict',
+				maxAge: jwtConfig.accessToken.expiresIn, // in milliseconds
+				path: '/'
+			});
+			res.cookie('refreshToken', tokens.refreshToken, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+				sameSite: 'strict',
+				maxAge: jwtConfig.refreshToken.expiresIn, // in milliseconds
+				path: '/'
+			});
+
 			// Everything's fine, send response.
 			return createOKResponse({
 				res, 
 				content:{
-					tokens,
 					// Convert user to JSON, to clear sensitive data (like password)
 					user:user.toJSON()
 				}
@@ -101,11 +118,26 @@ function UsersController() {
 
 			const [ tokens, user ] = await usersFacade.login({ username, password }); 
 
+			 // Set tokens in HttpOnly cookies
+			res.cookie('accessToken', tokens.accessToken, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: jwtConfig.accessToken.expiresIn,
+				path: '/'
+			});
+			res.cookie('refreshToken', tokens.refreshToken, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: jwtConfig.refreshToken.expiresIn,
+				path: '/'
+			});
+
 			// Everything's fine, send response.
 			return createOKResponse({
 				res, 
 				content:{
-					tokens,
 					// Convert user to JSON, to clear sensitive data (like password).
 					user: user.toJSON()
 				}
@@ -119,10 +151,17 @@ function UsersController() {
 
 	const _validate = async (req, res) => {
 		try {
-			const { token } = req.body;
+			// const { token } = req.body; // No longer needed from body if using cookies for access
+			const accessToken = req.cookies?.accessToken;
+
+			if (!accessToken) {
+				const err = new Error('Access Token not found in cookies!');
+				err.name = "InvalidToken";
+				throw err;
+			}
 
 			// Validate token against local seed.
-			await JWT.verifyAccessToken(token);
+			await JWT.verifyAccessToken(accessToken);
 
 			// Everything's fine, send response.
 			return createOKResponse({
@@ -146,22 +185,32 @@ function UsersController() {
 
 	const _refresh = async (req, res) => {
 		try {
-			// Unwrap refresh token.
-			const refreshToken = req?.refreshToken;
-			if (!refreshToken){
-				const err = new Err("No refreshToken found");
+			// Unwrap refresh token from cookie
+			const clientRefreshToken = req.cookies?.refreshToken;
+
+			if (!clientRefreshToken){ // Changed from req.refreshToken
+				const err = new Err("No refreshToken found in cookies");
 				err.name = "Unauthorized";
 				err.status = 401;
 				throw err;
 			}
 
 			// Everything's ok, issue new one.
-			const [ accessToken ] = await jwtFacade.refreshAccessToken({ refreshToken });
+			// jwtFacade.refreshAccessToken expects an object with refreshToken property
+			const [ newAccessToken ] = await jwtFacade.refreshAccessToken({ refreshToken: clientRefreshToken });
+
+			res.cookie('accessToken', newAccessToken, { // newAccessToken is the token string itself
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: jwtConfig.accessToken.expiresIn,
+				path: '/'
+			});
 
 			return createOKResponse({
 				res,
-				content:{ 
-					token: accessToken 
+				content:{
+					message: "Access token refreshed successfully"
 				}
 			});
 		}
@@ -178,22 +227,29 @@ function UsersController() {
 
 	const _logout = async (req, res) => {
 		try {
-			const refreshToken = req?.refreshToken;
-			if (!refreshToken){
-				const err = new Err("No refreshToken found");
+			// const refreshToken = req?.refreshToken; // No longer from req.refreshToken
+			const clientRefreshToken = req.cookies?.refreshToken;
+
+			if (!clientRefreshToken){
+				const err = new Err("No refreshToken found in cookies");
 				err.name = "Unauthorized";
 				err.status = 401;
 				throw err;
 			}
 
 			// Everything's ok, destroy token.
-			const [ status ] = await jwtFacade.disableRefreshToken({ refreshToken });
+			// jwtFacade.disableRefreshToken expects an object with refreshToken property
+			const [ status ] = await jwtFacade.disableRefreshToken({ refreshToken: clientRefreshToken });
+
+			// Clear cookies
+			res.clearCookie('accessToken', { path: '/' });
+			res.clearCookie('refreshToken', { path: '/' });
 
 			return createOKResponse({
 				res, 
 				content:{
 					status,
-					loggedIn: status === true
+					loggedIn: false // status from disableRefreshToken might not directly mean loggedIn status
 				}
 			});
 		}
