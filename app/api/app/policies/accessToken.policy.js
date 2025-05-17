@@ -9,12 +9,21 @@ const { Err } = require('#factories/errors');
 // Format of token: "Authorization: Bearer [token]"
 const ACCESS_TOKEN_NAME = 'Authorization';
 
+
+
 module.exports = async (req, res, next) => {
 	try {
+		console.log("Cookies:", req.cookies);
+		console.log("Headers:", req.headers);
+
 		let tokenToVerify;
 
+		 // Добавить проверку токена в cookies (ДОБАВЬТЕ ЭТОТ КОД):
+		if (req.cookies && req.cookies.accessToken) {
+			tokenToVerify = req.cookies.accessToken;
+		}
 		// Check token in Header:
-		if (req.header(ACCESS_TOKEN_NAME)) {
+		else if (req.header(ACCESS_TOKEN_NAME)) {
 			const parts = req.header(ACCESS_TOKEN_NAME).split(' ');
 
 			if (parts.length === 2 && /^Bearer$/.test(parts[0])) {

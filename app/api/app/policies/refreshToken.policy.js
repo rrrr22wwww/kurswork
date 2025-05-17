@@ -14,12 +14,16 @@ module.exports = async (req, res, next) => {
 	try {
 		let tokenToVerify;
 
-		// Check token in Header:
-		if (req.header(REFRESH_TOKEN_NAME)) {
+		// First check token in cookies (for browser clients)
+		if (req.cookies && req.cookies.refreshToken) {
+			tokenToVerify = req.cookies.refreshToken;
+		}
+		// Then check token in Header (for API clients)
+		else if (req.header(REFRESH_TOKEN_NAME)) {
 			tokenToVerify = req.header(REFRESH_TOKEN_NAME);
 		}
 		else {
-			const err = new Err(`No ${REFRESH_TOKEN_NAME} was found`);
+			const err = new Err(`No refresh token was found in cookies or ${REFRESH_TOKEN_NAME} header`);
 			err.status = 401;
 			throw err;
 		}

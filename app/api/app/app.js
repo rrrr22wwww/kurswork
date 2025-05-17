@@ -8,6 +8,8 @@ require('dotenv').config(); // Load environment variables from .env file
 const environments = require('#configs/envinorments');
 // Middleware for parsing requests bodies.
 const bodyParser = require('body-parser');
+// Cookie Parser
+const cookieParser = require('cookie-parser');
 // Express.
 const express = require('express');
 const http = require('http');
@@ -52,6 +54,9 @@ app.use(helmet({
 // Parsing the request bodies.
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// Use Cookie Parser middleware
+app.use(cookieParser());
 
 // Setup routes.
 app.use(routes({ app }));

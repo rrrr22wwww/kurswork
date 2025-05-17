@@ -72,14 +72,14 @@ function UsersController() {
 			});
 
 			 // Set tokens in HttpOnly cookies
-			res.cookie('accessToken', tokens.accessToken, {
+			res.cookie('accessToken', tokens.accessToken.token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
 				sameSite: 'strict',
 				maxAge: jwtConfig.accessToken.expiresIn, // in milliseconds
 				path: '/'
 			});
-			res.cookie('refreshToken', tokens.refreshToken, {
+			res.cookie('refreshToken', tokens.refreshToken.token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
 				sameSite: 'strict',
@@ -119,14 +119,14 @@ function UsersController() {
 			const [ tokens, user ] = await usersFacade.login({ username, password }); 
 
 			 // Set tokens in HttpOnly cookies
-			res.cookie('accessToken', tokens.accessToken, {
+			res.cookie('accessToken', tokens.accessToken.token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'strict',
 				maxAge: jwtConfig.accessToken.expiresIn,
 				path: '/'
 			});
-			res.cookie('refreshToken', tokens.refreshToken, {
+			res.cookie('refreshToken', tokens.refreshToken.token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'strict',
@@ -182,7 +182,7 @@ function UsersController() {
 			return _processError(err, req, res);
 		}
 	}
-
+	
 	const _refresh = async (req, res) => {
 		try {
 			// Unwrap refresh token from cookie
@@ -195,9 +195,27 @@ function UsersController() {
 				throw err;
 			}
 
+			// Verify the refresh token to get user id
+			let parsedToken;
+			try {
+				[parsedToken] = await JWT.verifyRefreshToken(clientRefreshToken);
+				if (!parsedToken || !parsedToken.id) {
+					throw new Error("Invalid token structure");
+				}
+			} catch (verifyError) {
+				console.error("Token verification failed:", verifyError);
+				const err = new Err("Invalid or expired refresh token");
+				err.name = "InvalidToken";
+				err.status = 401;
+				throw err;
+			}
+			
+			// Create a proper refreshToken object with token property
+			const refreshTokenObj = { ...parsedToken, token: clientRefreshToken };
+
 			// Everything's ok, issue new one.
 			// jwtFacade.refreshAccessToken expects an object with refreshToken property
-			const [ newAccessToken ] = await jwtFacade.refreshAccessToken({ refreshToken: clientRefreshToken });
+			const [ newAccessToken ] = await jwtFacade.refreshAccessToken({ refreshToken: refreshTokenObj });
 
 			res.cookie('accessToken', newAccessToken, { // newAccessToken is the token string itself
 				httpOnly: true,
@@ -224,7 +242,6 @@ function UsersController() {
 			return _processError(err, req, res);
 		}
 	}
-
 	const _logout = async (req, res) => {
 		try {
 			// const refreshToken = req?.refreshToken; // No longer from req.refreshToken
@@ -237,9 +254,15 @@ function UsersController() {
 				throw err;
 			}
 
+			// Verify the refresh token to get user id
+			const [parsedToken] = await JWT.verifyRefreshToken(clientRefreshToken);
+			
+			// Create a proper refreshToken object with token property
+			const refreshTokenObj = { ...parsedToken, token: clientRefreshToken };
+
 			// Everything's ok, destroy token.
 			// jwtFacade.disableRefreshToken expects an object with refreshToken property
-			const [ status ] = await jwtFacade.disableRefreshToken({ refreshToken: clientRefreshToken });
+			const [ status ] = await jwtFacade.disableRefreshToken({ refreshToken: refreshTokenObj });
 
 			// Clear cookies
 			res.clearCookie('accessToken', { path: '/' });

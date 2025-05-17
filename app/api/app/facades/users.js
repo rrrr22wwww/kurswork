@@ -86,25 +86,25 @@ async function _login({ username, password }) { // Changed email to username
 
 // Private:
 async function _getFullName({ userId }) {
-	try{
-		// Try to find user.
-		const user = await User.findById(userId);
+    try {
+        // Try to find user.
+        const user = await User.findById(userId);
 
-		if (!user) {
-			// If no such user was found, throw error with name UserNotFound:
-			const err = new Err('User not found');
-			err.name = "UserNotFound";
-			throw err;
-		}
+        if (!user) {
+            // If no such user was found, throw error with name UserNotFound:
+            const err = new Err('User not found');
+            err.name = "UserNotFound";
+            throw err;
+        }
 
-		// Get value of virtual field 'fullName'.
-		const fullName = user.fullName;
+        // Вместо fullName возвращаем username
+        const username = user.username;
 
-		// Send output.
-		return Promise.resolve([ fullName ]);
-	}
-	catch(error){
-		return Promise.reject(error);
-	}
+        // Send output.
+        return Promise.resolve([ username ]);
+    }
+    catch(error) {
+        return Promise.reject(error);
+    }
 }
 // Private\
