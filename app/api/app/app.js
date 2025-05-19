@@ -23,7 +23,6 @@ const cors = require('cors');
 const DB = require('#services/db.service');
 // Port info.
 const serverConfig = require('#configs/server');
-// Server configuration\
 
 // Express application.
 const app = express();
@@ -32,10 +31,17 @@ const server = http.Server(app);
 // Routes.
 const routes = require('#routes/');
 
-
-// Allow cross origin requests
-// (configure to only allow requests from certain origins).
-app.use(cors());
+// Расширенные настройки CORS вместо базовых
+app.use(cors({
+  origin: '*',                // Разрешаем все источники
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length'],
+  exposedHeaders: ['X-Total-Count', 'X-Pagination-Total-Pages'],
+  credentials: true,          // Разрешаем передачу cookies
+  preflightContinue: false,   // Автоматическая обработка OPTIONS запросов
+  optionsSuccessStatus: 204,  // Успешный статус для OPTIONS запросов
+  maxAge: 86400               // Кеширование preflight запросов на 24 часа
+}));
 
 // Set views path.
 app.set('views', __dirname+'/views');

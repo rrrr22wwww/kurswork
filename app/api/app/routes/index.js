@@ -12,43 +12,64 @@ const accessTokenMiddleware = require('#policies/accessToken.policy');
 const refreshTokenMiddleware = require('#policies/refreshToken.policy');
 // Mapper of routes to controllers.
 const mapRoutes = require('express-routes-mapper');
-
+// CORS middleware
+const cors = require('cors');
 
 module.exports = _setUpRoutes;
 
 function _setUpRoutes(options={}) {
-	try {
-		const app = options?.app;
-		const PostsController = require('../controllers/api/PostsController')();
+  try {
+    const app = options?.app;
+    const PostsController = require('../controllers/api/PostsController')();
 
-		apiOptions.versions.all.map(versionString => {
-			// Secure private API routes with JWT access token middleware.
-			app.all(`/api/${versionString}/private/*`, accessTokenMiddleware);
+    // Специальные настройки CORS для маршрутов с загрузкой файлов
+    const fileUploadCors = cors({
+      origin: '*',
+      methods: ['POST', 'PUT', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      credentials: true
+    });
 
-			// Secure refresh route and logout with JWT refresh token middleware:
-			app.use(`/api/${versionString}/auth/refresh`, refreshTokenMiddleware);
-			app.use(`/api/${versionString}/auth/logout`, refreshTokenMiddleware);
+    apiOptions.versions.all.map(versionString => {
+      // Secure private API routes with JWT access token middleware.
+      app.all(`/api/${versionString}/private/*`, accessTokenMiddleware);
 
-			// Добавьте специальную обработку для маршрута создания поста
-			app.post(`/api/${versionString}/private/posts`, PostsController.uploadMiddleware, (req, res) => {
-				PostsController.createPost(req, res);
-			});
+      // Secure refresh route and logout with JWT refresh token middleware:
+      app.use(`/api/${versionString}/auth/refresh`, refreshTokenMiddleware);
+      app.use(`/api/${versionString}/auth/logout`, refreshTokenMiddleware);
 
-			// Set API routes for express application
-			app.use(`/api/${versionString}`, mapRoutes(apiRoutes(versionString).public, 'app/controllers/api/'));
-			app.use(`/api/${versionString}/private`, mapRoutes(apiRoutes(versionString).private, 'app/controllers/api/'));
-		});
+      // Добавляем CORS для маршрутов с загрузкой файлов
+      app.options(`/api/${versionString}/private/posts`, fileUploadCors);
+      app.options(`/api/${versionString}/private/uploads/images`, fileUploadCors);
+      app.post(`/api/${versionString}/private/uploads/images`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+        PostsController.uploadImage(req, res);
+      });
 
-		// Set web routes for Express appliction.
-		app.use('/', mapRoutes(webRoutes.public, `app/controllers/web/`));
+      // Добавьте специальную обработку для маршрута создания поста
+      app.post(`/api/${versionString}/private/posts`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+        PostsController.createPost(req, res);
+      });
+      
+      // Обработка для маршрута обновления поста (для поддержки загрузки изображений)
+      app.put(`/api/${versionString}/private/posts/:id`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+        PostsController.updatePost(req, res);
+      });
 
-		// Everything's ok, continue.
-		return (req, res, next)=>next();
-	}
-	catch(error) {
-		const err = new Error(`Could not setup routes: ${error.message}`);
-		err.name = error?.name;
-		err.code = error?.code;
-		throw err;
-	}
+      // Set API routes for express application
+      app.use(`/api/${versionString}`, mapRoutes(apiRoutes(versionString).public, 'app/controllers/api/'));
+      app.use(`/api/${versionString}/private`, mapRoutes(apiRoutes(versionString).private, 'app/controllers/api/'));
+    });
+
+    // Set web routes for Express appliction.
+    app.use('/', mapRoutes(webRoutes.public, `app/controllers/web/`));
+
+    // Everything's ok, continue.
+    return (req, res, next)=>next();
+  }
+  catch(error) {
+    const err = new Error(`Could not setup routes: ${error.message}`);
+    err.name = error?.name;
+    err.code = error?.code;
+    throw err;
+  }
 }
