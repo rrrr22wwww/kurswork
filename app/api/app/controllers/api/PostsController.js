@@ -36,9 +36,20 @@ const upload = multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: (req, file, cb) => {
-        const allowedTypes = /\.(jpeg|jpg|png|gif|webp)$/i;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+        // Проверка расширения файла
+        const allowedExtensions = /\.(jpeg|jpg|png|gif|webp)$/i;
+        const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+        
+        // Проверка MIME-типа (правильный формат)
+        const allowedMimeTypes = /^image\/(jpeg|jpg|png|gif|webp)$/i;
+        const mimetype = allowedMimeTypes.test(file.mimetype);
+        
+        console.log('File info:', {
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            extname_valid: extname,
+            mimetype_valid: mimetype
+        });
         
         if (extname && mimetype) {
             return cb(null, true);

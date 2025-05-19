@@ -19,6 +19,7 @@ module.exports = _setUpRoutes;
 function _setUpRoutes(options={}) {
 	try {
 		const app = options?.app;
+		const PostsController = require('../controllers/api/PostsController')();
 
 		apiOptions.versions.all.map(versionString => {
 			// Secure private API routes with JWT access token middleware.
@@ -28,6 +29,10 @@ function _setUpRoutes(options={}) {
 			app.use(`/api/${versionString}/auth/refresh`, refreshTokenMiddleware);
 			app.use(`/api/${versionString}/auth/logout`, refreshTokenMiddleware);
 
+			// Добавьте специальную обработку для маршрута создания поста
+			app.post(`/api/${versionString}/private/posts`, PostsController.uploadMiddleware, (req, res) => {
+				PostsController.createPost(req, res);
+			});
 
 			// Set API routes for express application
 			app.use(`/api/${versionString}`, mapRoutes(apiRoutes(versionString).public, 'app/controllers/api/'));

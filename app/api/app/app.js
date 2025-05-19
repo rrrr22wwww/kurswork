@@ -51,12 +51,12 @@ app.use(helmet({
 	ieNoOpen: false,
 }));
 
+// Use Cookie Parser middleware
+app.use(cookieParser());
+
 // Parsing the request bodies.
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
-// Use Cookie Parser middleware
-app.use(cookieParser());
 
 // Setup routes.
 app.use(routes({ app }));
