@@ -3,3 +3,5 @@
 docker exec -it some-postgres3 psql -U sqldb -d database
 \c database
 \dt
+\d
+SELECT * FROM "Users";
