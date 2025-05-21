@@ -33,14 +33,14 @@ const routes = require('#routes/');
 
 // Расширенные настройки CORS вместо базовых
 app.use(cors({
-  origin: '*',                // Разрешаем все источники
+  origin: 'http://localhost:3000', // URL вашего фронтенда
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length'],
   exposedHeaders: ['X-Total-Count', 'X-Pagination-Total-Pages'],
-  credentials: true,          // Разрешаем передачу cookies
-  preflightContinue: false,   // Автоматическая обработка OPTIONS запросов
-  optionsSuccessStatus: 204,  // Успешный статус для OPTIONS запросов
-  maxAge: 86400               // Кеширование preflight запросов на 24 часа
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
 }));
 
 // Set views path.
