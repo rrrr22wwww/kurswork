@@ -29,21 +29,21 @@ const serverConfig = require('#configs/server');
 const app = express();
 // HTTP server (Do not use HTTPS, manage TLS with some proxy, like Nginx).
 const server = http.Server(app);
-// Routes.
-const routes = require('#routes/');
 
 // Расширенные настройки CORS вместо базовых
 app.use(cors({
-  origin: 'http://localhost:3000', // URL вашего фронтенда
-  credentials: true,
+  origin: 'http://localhost:3000', // Точный URL вашего фронтенда
+  credentials: true,               // Обязательно для отправки cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length'],
-  exposedHeaders: ['X-Total-Count', 'X-Pagination-Total-Pages'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length', /* добавьте другие, если нужны */],
+  exposedHeaders: ['X-Total-Count', 'X-Pagination-Total-Pages', /* добавьте другие, если нужны */],
   preflightContinue: false,
-  optionsSuccessStatus: 204, // Некоторые старые браузеры (IE11, некоторые SmartTVs) "спотыкаются" на 204
+  optionsSuccessStatus: 204,
   maxAge: 86400
 }));
 
+// Routes.
+const routes = require('#routes/');
 // Set views path.
 app.set('views', __dirname+'/views');
 // Set template engine (Pug by default).

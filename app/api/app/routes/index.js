@@ -13,7 +13,6 @@ const refreshTokenMiddleware = require('#policies/refreshToken.policy');
 // Mapper of routes to controllers.
 const mapRoutes = require('express-routes-mapper');
 // CORS middleware
-const cors = require('cors');
 
 module.exports = _setUpRoutes;
 
@@ -21,14 +20,6 @@ function _setUpRoutes(options={}) {
   try {
     const app = options?.app;
     const PostsController = require('../controllers/api/PostsController')();
-
-    // Специальные настройки CORS для маршрутов с загрузкой файлов
-    const fileUploadCors = cors({
-      origin: '*',
-      methods: ['POST', 'PUT', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-      credentials: true
-    });
 
     apiOptions.versions.all.map(versionString => {
       // Secure private API routes with JWT access token middleware.
@@ -39,19 +30,19 @@ function _setUpRoutes(options={}) {
       app.use(`/api/${versionString}/auth/logout`, refreshTokenMiddleware);
 
       // Добавляем CORS для маршрутов с загрузкой файлов
-      app.options(`/api/${versionString}/private/posts`, fileUploadCors);
-      app.options(`/api/${versionString}/private/uploads/images`, fileUploadCors);
-      app.post(`/api/${versionString}/private/uploads/images`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+      app.options(`/api/${versionString}/private/posts`);
+      app.options(`/api/${versionString}/private/uploads/images`, );
+      app.post(`/api/${versionString}/private/uploads/images`, PostsController.uploadMiddleware, (req, res) => {
         PostsController.uploadImage(req, res);
       });
 
       // Добавьте специальную обработку для маршрута создания поста
-      app.post(`/api/${versionString}/private/posts`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+      app.post(`/api/${versionString}/private/posts`, PostsController.uploadMiddleware, (req, res) => {
         PostsController.createPost(req, res);
       });
       
       // Обработка для маршрута обновления поста (для поддержки загрузки изображений)
-      app.put(`/api/${versionString}/private/posts/:id`, fileUploadCors, PostsController.uploadMiddleware, (req, res) => {
+      app.put(`/api/${versionString}/private/posts/:id`, PostsController.uploadMiddleware, (req, res) => {
         PostsController.updatePost(req, res);
       });
 

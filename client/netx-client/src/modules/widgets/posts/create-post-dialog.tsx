@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, DragEvent } from "react"; 
+import { useState, useEffect, useRef, DragEvent } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,33 +10,89 @@ import { Label } from "@/components/ui/label";
 import { PlusIcon, X, UploadCloud } from "lucide-react";
 import { MultiSelect, OptionType } from "@/components/ui/multi-select";
 
+interface EditablePost {
+  id: string;
+  title: string;
+  description?: string;
+  body: string;
+  status?: string;
+  categories?: { id: string; name: string }[] | string[];
+  tags?: { id: string; name: string }[] | string[];
+  preview_url?: string;
+}
+
 const API_BASE_URL = "http://localhost:3001/api/v1/private";
 
 interface CreatePostDialogProps {
-  onPostCreated?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  postToEdit?: EditablePost | null;
 }
 
-export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CreatePostDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+  postToEdit,
+}: CreatePostDialogProps) {
+  const isEditMode = !!postToEdit;
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [body, setBody] = useState("");
-  const status = "draft";
+  const [status, setStatus] = useState(postToEdit?.status || "draft");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [removeOriginalImage, setRemoveOriginalImage] = useState(false); // Новый флаг
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false); // Состояние для отслеживания перетаскивания
+  const [isDragging, setIsDragging] = useState(false);
 
   const [availableCategories, setAvailableCategories] = useState<OptionType[]>([]);
   const [availableTags, setAvailableTags] = useState<OptionType[]>([]);
 
   useEffect(() => {
+    if (isEditMode && postToEdit && open) {
+      setTitle(postToEdit.title || "");
+      setDescription(postToEdit.description || "");
+      setBody(postToEdit.body || "");
+      setStatus(postToEdit.status || "draft");
+
+      const mapIds = (items?: { id: string; name: string }[] | string[]): string[] => {
+        if (!items) return [];
+        return items.map(item => (typeof item === 'string' ? item : item.id));
+      };
+      setSelectedCategories(mapIds(postToEdit.categories));
+      setSelectedTags(mapIds(postToEdit.tags));
+
+      setImagePreviewUrl(postToEdit.preview_url || null);
+      setSelectedImage(null);
+      setRemoveOriginalImage(false); // Сброс флага при загрузке данных для редактирования
+    } else if (!isEditMode && open) {
+      // Сброс формы для нового поста
+      setTitle("");
+      setDescription("");
+      setBody("");
+      setStatus("draft");
+      setSelectedCategories([]);
+      setSelectedTags([]);
+      setSelectedImage(null);
+      setImagePreviewUrl(null);
+      setRemoveOriginalImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [postToEdit, isEditMode, open]);
+
+
+  useEffect(() => {
     const fetchData = async () => {
-      if (!open) return; // Загружаем данные только если диалог открыт
+      // ... (логика загрузки категорий и тегов без изменений) ...
+      if (!open) return;
+      setIsSubmitting(true); // Show loading for categories/tags
       try {
         const catResponse = await fetch(`${API_BASE_URL}/categories`, { credentials: 'include' });
         const tagResponse = await fetch(`${API_BASE_URL}/tags`, { credentials: 'include' });
@@ -44,9 +100,8 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
         if (catResponse.ok) {
           const catData = await catResponse.json();
           const categoriesFromServer = Array.isArray(catData.content?.categories) ? catData.content.categories : [];
-          setAvailableCategories(categoriesFromServer);
+          setAvailableCategories(categoriesFromServer.map((c: any) => ({ id: c.id, name: c.name })));
         } else {
-          console.error("Failed to fetch categories");
           setAvailableCategories([]);
           toast.error("Ошибка", { description: "Не удалось загрузить категории" });
         }
@@ -54,29 +109,28 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
         if (tagResponse.ok) {
           const tagData = await tagResponse.json();
           const tagsFromServer = Array.isArray(tagData.content?.tags) ? tagData.content.tags : [];
-          setAvailableTags(tagsFromServer);
+          setAvailableTags(tagsFromServer.map((t: any) => ({ id: t.id, name: t.name })));
         } else {
-          console.error("Failed to fetch tags");
           setAvailableTags([]);
           toast.error("Ошибка", { description: "Не удалось загрузить теги" });
         }
       } catch (error) {
-        console.error("Error fetching categories/tags:", error);
-        toast.error("Ошибка сети", { description: "Не удалось подключиться к серверу для загрузки данных." });
+        toast.error("Ошибка сети", { description: "Не удалось загрузить справочники." });
+      } finally {
+        setIsSubmitting(false); // Hide loading
       }
     };
-
     fetchData();
   }, [open]);
 
   const processFile = (file: File | null) => {
     if (file && file.type.startsWith("image/")) {
-      setSelectedImage(file);
+      setSelectedImage(file); // Новое изображение выбрано
       const objectUrl = URL.createObjectURL(file);
-      setImagePreviewUrl(objectUrl);
-    } else if (file) { // Если файл выбран, но это не изображение
+      setImagePreviewUrl(objectUrl); // Показываем превью нового изображения
+      setRemoveOriginalImage(false); // Если выбрано новое изображение, мы заменяем, а не просто удаляем старое
+    } else if (file) {
       toast.error("Неверный тип файла", { description: "Пожалуйста, выберите изображение (PNG, JPG, GIF)." });
-      clearSelectedImage(); // Очищаем, если файл невалидный
     }
   };
 
@@ -84,23 +138,36 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
     processFile(e.target.files && e.target.files[0]);
   };
 
-  const clearSelectedImage = () => {
-    setSelectedImage(null);
-    if (imagePreviewUrl) {
+  const clearSelectedImage = () => { // Кнопка "X" для удаления превью
+    // Если было выбрано новое изображение (blob URL), отзываем его
+    if (selectedImage && imagePreviewUrl && imagePreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreviewUrl);
-      setImagePreviewUrl(null);
     }
+    setSelectedImage(null); // Теперь нет выбранного *нового* файла
+
+    // Если мы в режиме редактирования и у поста было оригинальное изображение
+    if (isEditMode && postToEdit?.preview_url) {
+      // Если текущее превью было оригинальным изображением ИЛИ мы только что очистили новое выбранное изображение,
+      // то нажатие "X" теперь означает, что мы хотим удалить оригинальное изображение с сервера.
+      setImagePreviewUrl(null); // Очищаем превью
+      setRemoveOriginalImage(true); // Помечаем оригинальное изображение для удаления
+    } else {
+      // Не в режиме редактирования, или не было оригинального изображения
+      setImagePreviewUrl(null);
+      setRemoveOriginalImage(false);
+    }
+
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  useEffect(() => {
-    // Очистка URL объекта при размонтировании или закрытии диалога, если есть превью
-    if (!open && imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl);
-      setImagePreviewUrl(null); // Сбрасываем URL превью
-      setSelectedImage(null); // Сбрасываем выбранный файл
-    }
-  }, [open, imagePreviewUrl]);
+   useEffect(() => {
+    // Очистка blob URL при размонтировании или изменении imagePreviewUrl/selectedImage
+    return () => {
+      if (imagePreviewUrl && imagePreviewUrl.startsWith('blob:') && selectedImage) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl, selectedImage]);
 
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -121,91 +188,75 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processFile(e.dataTransfer.files[0]);
-      // Очищаем DataTransfer, чтобы избежать проблем с последующими drop событиями
-      if (e.dataTransfer.items) {
-        e.dataTransfer.items.clear();
-      } else {
-        e.dataTransfer.clearData();
-      }
+      if (e.dataTransfer.items) e.dataTransfer.items.clear();
+      else e.dataTransfer.clearData();
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) {
+        toast.error("Ошибка валидации", { description: "Заголовок поста не может быть пустым." });
+        return;
+    }
     setIsSubmitting(true);
 
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("body", body);
+    formData.append("status", status);
+
+    selectedCategories.forEach(categoryId => formData.append("categories[]", categoryId));
+    selectedTags.forEach(tagId => formData.append("tags[]", tagId));
+
+    if (selectedImage) { // Если выбрано новое изображение
+      formData.append("image", selectedImage);
+    } else if (isEditMode && removeOriginalImage) { // Если нового нет, но оригинальное помечено к удалению
+      formData.append("remove_preview_image", "true");
+    }
+    // Если ни одно из вышеперечисленных, поля, связанные с изображением, не отправляются.
+    // Бэкенд должен сохранить существующее изображение, если это режим редактирования.
+
+    const url = isEditMode ? `${API_BASE_URL}/posts/${postToEdit!.id}` : `${API_BASE_URL}/posts`;
+    const method = isEditMode ? 'PUT' : 'POST';
+
     try {
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("body", body);
-      formData.append("status", status);
-
-      selectedCategories.forEach(categoryId => formData.append("categories[]", categoryId));
-      selectedTags.forEach(tagId => formData.append("tags[]", tagId));
-
-      if (selectedImage) {
-        formData.append("image", selectedImage);
-      }
-
-      // Логирование содержимого FormData для проверки
-      console.log("Отправляемые данные (FormData):");
-      for (let pair of formData.entries()) {
-        // Если значение является файлом, выводим его имя и тип, иначе само значение
-        if (pair[1] instanceof File) {
-          console.log(`${pair[0]}: File name: ${pair[1].name}, File type: ${pair[1].type}, File size: ${pair[1].size}`);
-        } else {
-          console.log(`${pair[0]}: ${pair[1]}`);
-        }
-      }
-
-      const response = await fetch(`${API_BASE_URL}/posts`, {
-        method: 'POST',
-        body: formData, // Отправка FormData. Content-Type 'multipart/form-data' устанавливается браузером автоматически.
+      const response = await fetch(url, {
+        method: method,
+        body: formData,
         credentials: 'include',
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ 
-          error: { message: "Не удалось разобрать ошибку сервера. Статус: " + response.status } 
+        const errorData = await response.json().catch(() => ({
+          error: { message: `Не удалось ${isEditMode ? 'обновить' : 'создать'} пост. Статус: ${response.status}` }
         }));
-        console.error("Server error data:", errorData); // Эта строка у вас уже есть
-        // Попытка получить более детальное сообщение об ошибке
-        let detailedErrorMessage = "Ошибка сервера при создании поста";
-        if (errorData && errorData.error) {
-            if (typeof errorData.error === 'string') {
-                detailedErrorMessage = errorData.error;
-            } else if (errorData.error.message) {
-                detailedErrorMessage = errorData.error.message;
-            } else if (Object.keys(errorData.error).length > 0) {
-                // Если есть объект ошибки, но нет message, можно попробовать его сериализовать
-                try {
-                    detailedErrorMessage = JSON.stringify(errorData.error);
-                } catch (e) {
-                    // ignore
-                }
-            }
-        }
-        throw new Error(detailedErrorMessage);
+        throw new Error(errorData.error?.message || `Ошибка ${isEditMode ? 'обновления' : 'создания'} поста`);
       }
 
+      // Сброс полей формы после успешной отправки
       setTitle("");
       setDescription("");
       setBody("");
       setSelectedCategories([]);
       setSelectedTags([]);
-      clearSelectedImage();
-      setOpen(false);
+      setSelectedImage(null);
+      setImagePreviewUrl(null);
+      setRemoveOriginalImage(false); // Сброс флага
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      
+      onOpenChange(false);
 
-      toast.success("Пост создан", {
-        description: "Ваш пост был успешно опубликован"
+      toast.success(isEditMode ? "Пост обновлен" : "Пост создан", {
+        description: `Ваш пост был успешно ${isEditMode ? 'обновлен' : 'опубликован'}`
       });
 
-      if (onPostCreated) onPostCreated();
+      if (onSuccess) onSuccess();
 
     } catch (error: any) {
-      console.error("Ошибка при создании поста:", error);
-      toast.error("Ошибка создания поста", {
+      console.error(`Ошибка при ${isEditMode ? 'обновлении' : 'создании'} поста:`, error);
+      toast.error(`Ошибка ${isEditMode ? 'обновления' : 'создания'} поста`, {
         description: error.message || "Произошла неизвестная ошибка"
       });
     } finally {
@@ -214,23 +265,23 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          variant="default" 
-          size="default"
-          className="shadow-none flex items-center gap-1"
-        >
-          <PlusIcon size={16} />
-          Создать пост
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      onOpenChange(isOpen);
+      if (!isOpen) { // Если диалог закрывается (не через успешный submit)
+        // Сбрасываем состояние изображения, чтобы избежать проблем при следующем открытии
+        setSelectedImage(null);
+        setImagePreviewUrl(postToEdit && isEditMode ? postToEdit.preview_url || null : null); // Восстанавливаем исходное превью или null
+        setRemoveOriginalImage(false);
+        // Остальные поля формы будут сброшены или переинициализированы через useEffect при следующем открытии
+      }
+    }}>
       <DialogContent className="sm:max-w-[550px]">
-        <DialogTitle>Создание нового поста</DialogTitle>
+        <DialogTitle>{isEditMode ? "Редактировать пост" : "Создание нового поста"}</DialogTitle>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4 max-h-[80vh] overflow-y-auto px-2">
+          {/* ... (поля формы: title, description, body, image upload, categories, tags) ... */}
           <div className="grid gap-2">
-            <Label htmlFor="title">Заголовок</Label>
+            <Label htmlFor="title">Заголовок <span className="text-destructive">*</span></Label>
             <Input
               id="title"
               value={title}
@@ -251,17 +302,29 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
             />
           </div>
           
-          {/* Блок загрузки изображения с drag-and-drop */}
+          <div className="grid gap-2">
+            <Label htmlFor="body">Содержание поста (необязательно)</Label>
+            <Textarea
+              id="body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Введите содержание поста."
+              rows={8}
+              className="font-mono text-sm shadow-none"
+            />
+          </div>
+          
           <div className="grid gap-2">
             <Label htmlFor="image-upload-dnd">Изображение для превью (необязательно)</Label>
             {!imagePreviewUrl ? (
               <div
                 id="image-upload-dnd"
                 className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer
-                            bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 
-                            dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600
                             transition-colors duration-200 ease-in-out
-                            ${isDragging ? 'border-primary dark:border-primary' : 'border-gray-300'}`}
+                            ${isDragging 
+                              ? 'border-primary dark:border-primary bg-primary/5 dark:bg-primary/10' 
+                              : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                            }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -275,7 +338,7 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
                   <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF</p>
                 </div>
                 <Input 
-                  id="image-upload-input" // ID для скрытого инпута
+                  id="image-upload-input"
                   type="file" 
                   accept="image/*" 
                   onChange={handleImageChange}
@@ -301,21 +364,6 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
           </div>
           
           <div className="grid gap-2">
-            <Label htmlFor="body">Содержание поста</Label>
-            <div className="relative">
-              <Textarea
-                id="body"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Введите содержание поста."
-                rows={8}
-                required
-                className="font-mono text-sm shadow-none"
-              />
-            </div>
-          </div>
-          
-          <div className="grid gap-2">
             <Label>Категории (необязательно)</Label>
             <MultiSelect 
               options={availableCategories}
@@ -338,16 +386,13 @@ export function CreatePostDialog({ onPostCreated }: CreatePostDialogProps) {
           </div>
           
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setOpen(false)}
-              className="mr-2 shadow-none"
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Отмена
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="shadow-none">
-              {isSubmitting ? "Публикация..." : "Опубликовать"}
+            <Button type="submit" disabled={isSubmitting || !title.trim()} className="shadow-none">
+              {isEditMode 
+                ? (isSubmitting ? "Сохранение..." : "Сохранить изменения")
+                : (isSubmitting ? "Публикация..." : "Опубликовать")}
             </Button>
           </DialogFooter>
         </form>

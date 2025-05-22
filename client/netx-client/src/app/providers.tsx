@@ -7,7 +7,7 @@ import { AuthProvider } from "@/components/ui/AuthProvider"; // Путь мож�
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider attribute="class" defaultTheme="ligth" enableSystem>
         {children}
         <Toaster />
       </ThemeProvider>
