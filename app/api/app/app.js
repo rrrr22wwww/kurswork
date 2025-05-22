@@ -17,6 +17,7 @@ const http = require('http');
 const helmet = require('helmet');
 // Cross-origin requests middleware.
 const cors = require('cors');
+const path = require('path'); // <--- ДОБАВЬТЕ ЭТУ СТРОКУ для импорта модуля path
 
 // Server configuration:
 // ORM.
@@ -39,7 +40,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length'],
   exposedHeaders: ['X-Total-Count', 'X-Pagination-Total-Pages'],
   preflightContinue: false,
-  optionsSuccessStatus: 204,
+  optionsSuccessStatus: 204, // Некоторые старые браузеры (IE11, некоторые SmartTVs) "спотыкаются" на 204
   maxAge: 86400
 }));
 
@@ -47,8 +48,15 @@ app.use(cors({
 app.set('views', __dirname+'/views');
 // Set template engine (Pug by default).
 app.set('view engine', 'pug');
+
 // Set folder for static contents.
-app.use(express.static('public'));
+// Старая строка: app.use(express.static('public'));
+// Новая, исправленная строка:
+// __dirname здесь будет C:\Users\oisa0\OneDrive\Рабочий стол\kurswork\app\api\app
+// Нам нужно подняться на два уровня, чтобы достичь C:\Users\oisa0\OneDrive\Рабочий стол\kurswork\app\public
+const publicDirectoryPath = path.join(__dirname, '..', '..', 'public');
+console.log(`Serving static files from: ${publicDirectoryPath}`); // Для отладки, чтобы убедиться, что путь правильный
+app.use(express.static(publicDirectoryPath)); // <--- ИСПОЛЬЗУЙТЕ ЭТУ СТРОКУ
 
 // Secure express app.
 app.use(helmet({

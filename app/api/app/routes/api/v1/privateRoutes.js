@@ -3,7 +3,7 @@ module.exports = {
     'GET /users/name': 'UsersController.getFullName',
 
     // --- Посты ---
-    'GET /posts': 'PostsController.getAllPosts',
+    // 'GET /posts': 'PostsController.getAllPosts',
     'POST /posts': 'PostsController.createPost',
     'GET /posts/:id': 'PostsController.getPostById',
     'PUT /posts/:id': 'PostsController.updatePost',

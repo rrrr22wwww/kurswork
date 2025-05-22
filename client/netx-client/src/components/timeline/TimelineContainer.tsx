@@ -2,15 +2,21 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { TimelineCard } from './TimelineCard';
+import { PostDetailModal } from './PostDetailModal'; // Импортируем модальное окно
 import { format, parseISO } from 'date-fns';
 
+// Убедимся, что тип Post здесь соответствует ожиданиям PostDetailModal и TimelineCard
 type Post = {
   id: string;
   title: string;
   content: string;
   createdAt: string;
-  imageUrl?: string; // Опциональный URL изображения
-  tags?: string[];    // Опциональные теги
+  imageUrl?: string;
+  tags?: string[];
+  categories?: string[]; // Добавим категории, если они есть
+   creator?: { // Добавим автора, если он есть
+    username: string;
+  };
 };
 
 type TimelineProps = {
@@ -20,33 +26,42 @@ type TimelineProps = {
 export function TimelineContainer({ posts }: TimelineProps) {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [dotPositions, setDotPositions] = useState<number[]>([]);
+
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleCardClick = (post: Post) => {
+    setSelectedPost(post);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // Можно добавить задержку перед сбросом selectedPost, чтобы избежать "мелькания" контента при закрытии
+    setTimeout(() => setSelectedPost(null), 300); 
+  };
   
-  // Изменяем расчет позиций для точек
   useEffect(() => {
     const calculateDotPositions = () => {
       const positions = cardRefs.current
         .filter(ref => ref !== null)
         .map(ref => {
-          // Точка будет на уровне верха карточки + треть высоты (примерно на уровне заголовка)
           const top = ref!.offsetTop;
           const height = ref!.offsetHeight;
-
-          // className="mb-16 relative" mb16 = 64px (64 * 2) 
-          return (top + height) - 64*2 ; // Не более 80px от верха карточки
+          // className="mb-16 -relative" - 64px высчитываем по этому значению
+          return (top + height) - 64*2 ; 
         });
       
       setDotPositions(positions);
     };
     
-    // Первоначальный расчет с таймаутом для надежности
     const timer = setTimeout(() => {
       calculateDotPositions();
     }, 100);
     
     window.addEventListener('resize', calculateDotPositions);
     
-    // Добавляем MutationObserver для отслеживания изменений размеров контента
-    const observers = cardRefs.current.map((ref, index) => {
+    const observers = cardRefs.current.map((ref) => {
       if (!ref) return null;
       
       const observer = new MutationObserver(() => {
@@ -70,7 +85,6 @@ export function TimelineContainer({ posts }: TimelineProps) {
     };
   }, [posts.length]);
 
-  // Остальной код без изменений
   const formatDateTime = (dateString: string) => {
     try {
       const date = parseISO(dateString);
@@ -85,64 +99,62 @@ export function TimelineContainer({ posts }: TimelineProps) {
   };
   
   return (
-    <div className="container mx-auto px-4 py-12 px-32">
-      <div className="flex">
-        {/* Линия с точками и датами */}
-        <div className="relative w-24 flex-shrink-0">
-          {/* Вертикальная линия */}
-          <div className="absolute h-full w-[2px] bg-gray-200 left-16">
-            {/* Начальный круг в верхней части линии */}
-            <div
-              className="absolute left-0.25 -translate-x-1/2"
-              style={{ top: '0px' }}
-            >
+    <>
+      <div className="container mx-auto px-4 py-12 md:px-32"> 
+        <div className="flex">
+          <div className="relative w-24 flex-shrink-0 hidden md:block"> 
+            <div className="absolute h-full w-[2px] bg-gray-200 dark:bg-gray-700 left-1/2 -translate-x-1/2">
               <div
-                className="w-3 h-3 bg-gray-200 rounded-full -translate-y-1/2 z-10"
-                style={{ position: 'relative', left: 0 }}
-              />
-            </div>
-
-            {/* Точки для постов */}
-            {posts.map((post, index) => {
-              // Используем статичное позиционирование для точек, если координаты не рассчитаны
-              const topPosition = dotPositions[index] || (index * 200 + 70);
-              const { date, time } = formatDateTime(post.createdAt);
-              
-              return (
+                className="absolute left-1/2 -translate-x-1/2"
+                style={{ top: '0px' }}
+              >
                 <div
-                  key={post.id}
-                  className="absolute left-0.25 -translate-x-1/2"
-                  style={{ top: `${topPosition}px` }}
-                >
-                  {/* Дата слева от точки */}
-                  <div className="absolute right-6 -translate-y-1/2 text-right whitespace-nowrap">
-                    <div className="text-4xl font-normal text-gray-400 ">{date}</div>
-                    <div className="text-lg  text-gray-400">{time}</div>
-                  </div>
-                  {/* Точка-индикатор */}
+                  className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full -translate-y-1/2 z-10"
+                />
+              </div>
+
+              {posts.map((post, index) => {
+                const topPosition = dotPositions[index] || (index * 200 + 70); // Базовое позиционирование
+                const { date, time } = formatDateTime(post.createdAt);
+                
+                return (
                   <div
-                    className="w-3 h-3 bg-gray-200 rounded-full -translate-y-1/2 z-10"
-                    style={{ position: 'relative', left: 0 }}
-                  />
-                </div>
-              );
-            })}
+                    key={`${post.id}-dot`}
+                    className="absolute left-1/2 -translate-x-1/2" // Центрируем точку
+                    style={{ top: `${topPosition}px` }}
+                  >
+                    <div className="absolute right-6 -translate-y-1/2 text-right whitespace-nowrap">
+                      <div className="text-3xl md:text-4xl font-normal text-gray-400 dark:text-gray-500">{date}</div>
+                      <div className="text-base md:text-lg text-gray-400 dark:text-gray-500">{time}</div>
+                    </div>
+                    <div
+                      className="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full -translate-y-1/2 z-10"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          <div className="flex-grow md:pl-8 max-w-[40rem]"> {/* Добавляем отступ слева на средних и больших экранах */}
+            {posts.map((post, index) => (
+              <div 
+                key={post.id} 
+                className="mb-16 relative"
+                // @ts-ignore
+                ref={el => { cardRefs.current[index] = el; }}
+              >
+                <TimelineCard post={post} onClick={handleCardClick} />
+              </div>
+            ))}
           </div>
         </div>
-        
-        {/* Карточки постов */}
-        <div className="flex-grow">
-          {posts.map((post, index) => (
-            <div 
-              key={post.id} 
-              className="mb-16 relative"
-              ref={el => { cardRefs.current[index] = el; }}
-            >
-              <TimelineCard post={post} />
-            </div>
-          ))}
-        </div>
       </div>
-    </div>
+      <PostDetailModal
+        post={selectedPost}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
+    </>
   );
 }

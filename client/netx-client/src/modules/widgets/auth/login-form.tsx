@@ -25,12 +25,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     try {
       await login(username, password);
+      console.log("Login success, will call onSuccess callback");
       
       toast.success("Успешный вход", {
         description: "Вы вошли в систему",
       });
 
-      if (onSuccess) onSuccess();
+      // Небольшая задержка перед вызовом колбэка
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+      }, 100);
+      
     } catch (error: any) {
       console.error("Ошибка авторизации:", error);
       setError(error.message || "Неверное имя пользователя или пароль");
